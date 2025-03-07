@@ -31,7 +31,7 @@ def save_presets(data):
 timers = {}
 server_presets = load_presets()
 
-# Bot Startup
+# Bot startup with logs
 @bot.event
 async def on_ready():
     try:
@@ -49,13 +49,13 @@ async def on_ready():
 
     logger.info(f"Logged in as {bot.user}.")
 
-# Slash Command: Add Preset
+# The setup for adding a new preset, currently only command in the bot
 @bot.tree.command(name="add_preset", description="Add a new user or phrase trigger preset")
 @app_commands.describe(
     trigger_type="Trigger type: user or phrase",
-    trigger="User ID, username (mention), or phrase",
+    trigger="User ID or phrase",
     action="Select an action",
-    response="Message, GIF URL, or emoji",
+    response="Message, URL, or emoji",
     cooldown="Cooldown in minutes"
 )
 async def add_preset(
@@ -66,16 +66,16 @@ async def add_preset(
     response: str,
     cooldown: int
 ):
-    # Automatically lowercase trigger_type and action
+    # Automatically lowercase trigger_type and action because otherwise it won't take action
     trigger_type = trigger_type.lower()
     action = action.lower()
 
     logger.info(f"Received add_preset command with trigger_type={trigger_type}, action={action}, trigger={trigger}, response={response}, cooldown={cooldown}")
 
-    # Convert Usernames/Mentions to User IDs if trigger type is "user"
+    # Convert Usernames/Mentions to User IDs if trigger type is "user" (I don't think this works tho)
     if trigger_type == "user":
         if trigger.isdigit():
-            user_id = trigger  # Already an ID
+            user_id = trigger
         else:
             user = discord.utils.get(interaction.guild.members, name=trigger.strip("@"))
             if not user:
@@ -83,7 +83,7 @@ async def add_preset(
                 logger.warning(f"User not found: {trigger}")
                 return
             user_id = str(user.id)
-        trigger = user_id  # Save the ID instead of the username
+        trigger = user_id
 
     guild_id = str(interaction.guild.id)
     if guild_id not in server_presets:
@@ -123,4 +123,4 @@ async def action_autocomplete(interaction: discord.Interaction, current: str):
 # Import and setup event handlers
 event_handlers.setup(bot, server_presets)
 
-bot.run(config.TOKEN)
+bot.run(config.TOKEN) # Add your bot token here or make a config file
