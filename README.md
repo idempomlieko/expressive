@@ -1,5 +1,5 @@
 # Expressive | A discord chat reactions bot!
-### Current Version - v0.1 
+### Current Version - v0.2 
 
 Expressive is a simple discord bot utilising discords discord.py library for bot and application development.
 For this to properly work, you will need to set up a discord application via the Discord Dev Portal - guide below.
@@ -24,7 +24,7 @@ For this to properly work, you will need to set up a discord application via the
 ### Installation steps:
 1. Clone / download the contents of the repository.
 3. Navigate to the installation folder and run `pip install -r requirements.txt` - This will install all libraries used.
-4. Create a virtual environment - Linux : `source venv/bin/activate`  Windows : `venv\Scripts\activate`
-5. Create the following files: - **presets.json** - used for storing all presets (bot-wide)    &    **config.py** - used for storing the bot token
+4. Create a virtual environment and activate it.
+5. Create the following files: **config.py** - used for storing the bot token
 6. In **config.py**, add the following: `TOKEN = 'YOUR TOKEN HERE' ` (including the apostrophe). In **presets.json**, add a set of empty brackets `{}` to avoid any issues.
 7. Run the bot by navigating into your installation folder and running:  Linux / MacOS :  `python3 bot.py`  Windows : `python bot.py` 
