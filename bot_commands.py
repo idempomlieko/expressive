@@ -4,10 +4,9 @@ import logging
 import random
 import string
 
-from file_handling.py import load_expressions, save_expressions
+from file_handling import load_expressions, save_expressions
 
 logger = logging.getLogger(__name__)
-
 
 def setup(bot):
     @bot.tree.command(name="expression_new", description="Add a new user or phrase trigger expression")
@@ -29,15 +28,13 @@ def setup(bot):
         trigger_type = trigger_type.lower()
         action = action.lower()
 
-        logger.info(f"Received expression_new command with trigger_type={trigger_type}, action={
-                    action}, trigger={trigger}, response={response}, cooldown={cooldown}")
+        logger.info(f"Received expression_new command with trigger_type={trigger_type}, action={action}, trigger={trigger}, response={response}, cooldown={cooldown}")
 
         if trigger_type == "user":
             if trigger.isdigit():
                 user_id = trigger
             else:
-                user = discord.utils.get(
-                    interaction.guild.members, name=trigger.strip("@"))
+                user = discord.utils.get(interaction.guild.members, name=trigger.strip("@"))
                 if not user:
                     await interaction.response.send_message("User not found!", ephemeral=True)
                     logger.warning(f"User not found: {trigger}")
@@ -54,8 +51,7 @@ def setup(bot):
                 "invited_at": str(interaction.guild.me.joined_at)
             }
 
-        expression_id = ''.join(random.choices(
-            string.ascii_letters + string.digits, k=5))
+        expression_id = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
         expression = {
             "id": expression_id,
             "trigger_type": trigger_type,
@@ -67,8 +63,8 @@ def setup(bot):
         }
         server_data["expressions"].append(expression)
         save_expressions(guild_id, server_data)
-        logger.info(f"expression added: {expression}")
-        await interaction.response.send_message(f"expression added successfully! ID: {expression_id}", ephemeral=True)
+        logger.info(f"Expression added: {expression}")
+        await interaction.response.send_message(f"Expression added successfully! ID: {expression_id}", ephemeral=True)
 
     @expression_new.autocomplete("trigger_type")
     async def trigger_type_autocomplete(interaction: discord.Interaction, current: str):
@@ -89,17 +85,13 @@ def setup(bot):
     async def help_command(interaction: discord.Interaction):
         commands_list = """
         **Available Commands:**
-        - /help: Show all available commands
-        - /expressive: Show all available commands
-        - /expression_new: Create a new expression expression
-        - /expression_guide: Show a guide on how to make expressions
-        - /expression_list: Show a list of all expressions on the server
+        - help: Show all available commands
+        - expression_new: Create a new expression
+        - expression_guide: Show a guide on how to make expressions
+        - expression_list: Show a list of all expressions on the server
+        - expression_delete: Delete an expression by ID
         """
-        await interaction.response.send_message(commands_list, ephemeral=True)
-
-    @bot.tree.command(name="expressive", description="Show all available commands")
-    async def expressive_command(interaction: discord.Interaction):
-        await help_command(interaction)
+        await interaction.response.send_message(commands_list, ephemeral=False)
 
     @bot.tree.command(name="expression_guide", description="Show a guide on how to make expressions")
     async def expression_guide(interaction: discord.Interaction):
@@ -116,10 +108,25 @@ def setup(bot):
         guild_id = str(interaction.guild.id)
         server_data = load_expressions(guild_id)
         if not server_data["expressions"]:
-            await interaction.response.send_message("No expressions found for this server.", ephemeral=True)
+            await interaction.response.send_message("No expressions found for this server.", ephemeral=False)
             return
 
         expressions = server_data["expressions"]
-        expressions_list = "\n".join([f"ID: {exp['id']}, Trigger: {exp['trigger']}, Action: {
-                                     exp['action']}, Response: {exp['response']}" for exp in expressions])
-        await interaction.response.send_message(f"**Expressions List:**\n{expressions_list}", ephemeral=True)
+        expressions_list = "\n".join([f"ID: {exp['id']}, Trigger: {exp['trigger']}, Action: {exp['action']}, Response: {exp['response']}" for exp in expressions])
+        await interaction.response.send_message(f"**Expressions List:**\n{expressions_list}", ephemeral=False)
+
+    @bot.tree.command(name="expression_delete", description="Delete an expression by ID")
+    @app_commands.describe(expression_id="The ID of the expression to delete")
+    async def expression_delete(interaction: discord.Interaction, expression_id: str):
+        guild_id = str(interaction.guild.id)
+        server_data = load_expressions(guild_id)
+        expressions = server_data.get("expressions", [])
+
+        expression_to_delete = next((exp for exp in expressions if exp["id"] == expression_id), None)
+        if expression_to_delete:
+            expressions.remove(expression_to_delete)
+            save_expressions(guild_id, server_data)
+            logger.info(f"Expression deleted: {expression_to_delete}")
+            await interaction.response.send_message(f"Expression with ID {expression_id} deleted successfully.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"No expression found with ID {expression_id}.", ephemeral=True)

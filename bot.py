@@ -21,7 +21,7 @@ async def on_ready():
         logger.error(f"Failed to sync slash commands: {e}")
 
     try:
-        custom_status = discord.CustomActivity("Expressing myself... Use slash commands!")
+        custom_status = discord.CustomActivity(f"Expressing myself in {server_count} servers! Use slash commands!")
         await bot.change_presence(activity=custom_status)
         logger.info("Presence loaded.")
     except Exception as e:

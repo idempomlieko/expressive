@@ -1,3 +1,14 @@
+## v0.2.1 - Saturday, March 8
+- **Extracted** file handling
+- **Changed** all occurences of preset to expression
+- **Changed** gitignore
+- Courtesy of v0.2.1 goes to TomChovanec
+- **Changed** *help* and other commands to be visible to all chat participants (ephemeral=False)
+- **Removed** the *expression* command, as it had no functionality beyond being a secondary *help* command
+- **Added** the *expression_delete* command
+- **Added** server count in custom status
+
+
 ## v0.2 - Saturday, March 8
 - **Added commands** for help, expressive, expression_list, expression_guide
 - **Changed** preset to expression - functionality remains same, name change only for thematic purposes.

@@ -13,6 +13,13 @@ For this to properly work, you will need to set up a discord application via the
 - **Anti-harassment measures** - will allow users to opt out of these features, along with letting administrators set blacklists for people who can't create presets, banned words, minimum times...
 
 
+## Command list
+- **help** - shows all commands
+- **expression_guide** - shows a guide on expressions
+- **expression_new** - creates new expression
+- **expression_list** - shows all expressions in the server
+- **expression_delete** - deletes an expression
+
 ### Setting up a Discord bot:
 1. In [Discord Developer Portal](https://discord.com/developers/applications), create a new application with a custom name.
 2. Navigate to the **OAuth2** tab on the left. Scroll down to **OAuth2 URL Generator**. In **Scopes** , select **bot** and **applications.commands**. Under **Permissions**, either select *Admin*, or manually pick permissions you deem fit. For this one, I picked *View Channels, Send Messages, Send Messages in Threads, Manage Messages, Embed Links, Attach Files, Read Message History, Use External Emojis, Use External Stickers, Add Reactions*.
