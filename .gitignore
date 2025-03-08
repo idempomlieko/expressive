@@ -1,3 +1,4 @@
 config.py
-presets.json
 __pycache__/
+serverdata/
+venv/

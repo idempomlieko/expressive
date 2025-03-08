@@ -1,24 +1,13 @@
 import discord
 import logging
 import asyncio
-import json
-import os
+
+from file_handling.py import load_expressions
 
 logger = logging.getLogger(__name__)
 
 cooldowns = {}
 
-def load_presets(guild_id):
-    filepath = f"serverdata/{guild_id}.json"
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, "r") as file:
-                return json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error(f"Failed to load presets for guild {guild_id}: {e}")
-            return {"info": {}, "presets": []}
-    else:
-        return {"info": {}, "presets": []}
 
 def setup(bot):
     @bot.event
@@ -27,32 +16,35 @@ def setup(bot):
             return
 
         guild_id = str(message.guild.id)
-        server_data = load_presets(guild_id)
-        presets = server_data.get("presets", [])
+        server_data = load_expressions(guild_id)
+        expressions = server_data.get("expressions", [])
 
-        for preset in presets:
-            preset_id = preset["id"]
-            trigger_type = preset["trigger_type"]
-            trigger = preset["trigger"]
-            action = preset["action"]
-            response = preset["response"]
-            cooldown = preset["cooldown"]
+        for expression in expressions:
+            expression_id = expression["id"]
+            trigger_type = expression["trigger_type"]
+            trigger = expression["trigger"]
+            action = expression["action"]
+            response = expression["response"]
+            cooldown = expression["cooldown"]
 
-
-            cooldown_key = f"{guild_id}-{preset_id}"
+            cooldown_key = f"{guild_id}-{expression_id}"
             if cooldown_key in cooldowns:
-                time_left = cooldowns[cooldown_key] - asyncio.get_event_loop().time()
+                time_left = cooldowns[cooldown_key] - \
+                    asyncio.get_event_loop().time()
                 if time_left > 0:
-                    logger.info(f"Cooldown active for preset {preset_id}: {time_left:.2f} seconds remaining.")
+                    logger.info(f"Cooldown active for expression {expression_id}: {
+                                time_left:.2f} seconds remaining.")
                     continue
 
             if trigger_type == "user" and str(message.author.id) == trigger:
                 await handle_action(message, action, response)
-                cooldowns[cooldown_key] = asyncio.get_event_loop().time() + (cooldown * 60)
+                cooldowns[cooldown_key] = asyncio.get_event_loop().time() + \
+                    (cooldown * 60)
 
             elif trigger_type == "phrase" and trigger.lower() in message.content.lower():
                 await handle_action(message, action, response)
-                cooldowns[cooldown_key] = asyncio.get_event_loop().time() + (cooldown * 60)
+                cooldowns[cooldown_key] = asyncio.get_event_loop().time() + \
+                    (cooldown * 60)
 
     async def handle_action(message, action, response):
         if action == "send":
