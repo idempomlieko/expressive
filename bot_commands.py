@@ -50,7 +50,6 @@ def setup(bot):
         response: str,
         cooldown: int
     ):
-
         trigger_type = trigger_type.lower()
         action = action.lower()
 

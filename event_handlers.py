@@ -38,6 +38,7 @@ def setup(bot):
             response = preset["response"]
             cooldown = preset["cooldown"]
 
+
             cooldown_key = f"{guild_id}-{preset_id}"
             if cooldown_key in cooldowns:
                 time_left = cooldowns[cooldown_key] - asyncio.get_event_loop().time()

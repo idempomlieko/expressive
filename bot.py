@@ -3,7 +3,7 @@ from discord.ext import commands
 import config
 import logging
 import event_handlers
-import commands
+import bot_commands
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(levelname)s:%(name)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -29,8 +29,7 @@ async def on_ready():
 
     logger.info(f"Logged in as {bot.user}.")
 
-
 event_handlers.setup(bot)
-commands.setup(bot)
+bot_commands.setup(bot)
 
 bot.run(config.TOKEN)
