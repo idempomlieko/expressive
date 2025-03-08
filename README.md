@@ -15,10 +15,9 @@ For this to properly work, you will need to set up a discord application via the
 
 ### Setting up a Discord bot:
 1. In [Discord Developer Portal](https://discord.com/developers/applications), create a new application with a custom name.
-2. Navigate to the **OAuth2** tab on the left. There, get your app's **Client Secret (token)** and save it in a secure place. **Do NOT share this token.**
-3. Scroll down to **OAuth2 URL Generator**. In **Scopes** , select **bot** and **applications.commands**. Under **Permissions**, either select *Admin*, or manually pick permissions you deem fit. For this one, I picked *View Channels, Send Messages, Send Messages in Threads, Manage Messages, Embed Links, Attach Files, Read Message History, Use External Emojis, Use External Stickers, Add Reactions*.
-4. Under **Integration Type**, select **Guild install**. Copy the link and save it - you will use it to invite the bot to your servers.
-5. Navigate to the **Bot** tab on the left. Scroll down to *Privileged Gateway Intents* and enable **Message Content Intent** (the last one).
+2. Navigate to the **OAuth2** tab on the left. Scroll down to **OAuth2 URL Generator**. In **Scopes** , select **bot** and **applications.commands**. Under **Permissions**, either select *Admin*, or manually pick permissions you deem fit. For this one, I picked *View Channels, Send Messages, Send Messages in Threads, Manage Messages, Embed Links, Attach Files, Read Message History, Use External Emojis, Use External Stickers, Add Reactions*.
+3.  Under **Integration Type**, select **Guild install**. Copy the link and save it - you will use it to invite the bot to your servers.
+4.  Navigate to the **Bot** tab on the left. There, get your app's **Client Secret (token)** and save it in a secure place. **Do NOT share this token.** Scroll down to *Privileged Gateway Intents* and enable **Message Content Intent** (the last one).
 
 
 ### Installation steps:
