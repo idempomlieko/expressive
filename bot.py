@@ -22,7 +22,7 @@ async def on_ready():
 
     try:
         server_count = len(bot.guilds)
-        custom_status = discord.Game(f"Expressing myself in {server_count} servers!")
+        custom_status = discord.CustomActivity(f"Expressing myself in {server_count} servers!")
         await bot.change_presence(activity=custom_status)
         logger.info("Presence loaded.")
     except Exception as e:

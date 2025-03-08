@@ -83,15 +83,26 @@ def setup(bot):
 
     @bot.tree.command(name="help", description="Show all available commands")
     async def help_command(interaction: discord.Interaction):
-        commands_list = """
-        **Available Commands:**
-        - help: Show all available commands
-        - expression_new: Create a new expression
-        - expression_guide: Show a guide on how to make expressions
-        - expression_list: Show a list of all expressions on the server
-        - expression_delete: Delete an expression by ID
-        """
-        await interaction.response.send_message(commands_list, ephemeral=False)
+        embed = discord.Embed(
+            title="Expressive /help",
+            description=(
+                "**/help** - Show all available commands\n"
+                "**/expression_new** - Create a new expression\n"
+                "**/expression_guide** - Show a guide on how to make expressions\n"
+                "**/expression_list** - Show a list of all expressions on the server\n"
+                "**/expression_delete** - Delete an expression by ID"
+            ),
+
+            colour=0xc15bb2,
+            timestamp=datetime.now()
+        )
+
+        embed.set_footer(
+            text="Expressive",
+            icon_url="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-photo%2Fespresso-with-white-background_985067-3129.jpg%3Fw%3D2000&f=1&nofb=1&ipt=903c7ea5acb50a1c4c929321fb543b89e1ea79a8b9d7787c9555edea80b3f4bc&ipo=images"
+        )
+
+        await interaction.response.send_message(embed=embed)
 
     @bot.tree.command(name="expression_guide", description="Show a guide on how to make expressions")
     async def expression_guide(interaction: discord.Interaction):
