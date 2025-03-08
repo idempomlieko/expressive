@@ -4,7 +4,7 @@ import logging
 import random
 import string
 
-from file_handling.py import load_expressions, save_expressions
+from file_handling import load_expressions, save_expressions
 
 logger = logging.getLogger(__name__)
 

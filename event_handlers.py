@@ -2,7 +2,7 @@ import discord
 import logging
 import asyncio
 
-from file_handling.py import load_expressions
+from file_handling import load_expressions
 
 logger = logging.getLogger(__name__)
 
