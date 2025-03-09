@@ -1,3 +1,4 @@
 discord.py==2.3.2
 configobj==5.0.8  # If you're using config files
 requests==2.31.0  # If your bot fetches web data
+audioop-lts==0.2.1

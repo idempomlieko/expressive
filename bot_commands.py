@@ -9,6 +9,9 @@ from file_handling import load_expressions, save_expressions
 
 logger = logging.getLogger(__name__)
 
+icon_url = "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-photo%2Fespresso-with-white-background_985067-3129.jpg%3Fw%3D2000&f=1&nofb=1&ipt=903c7ea5acb50a1c4c929321fb543b89e1ea79a8b9d7787c9555edea80b3f4bc&ipo=images"
+
+
 def setup(bot):
     @bot.tree.command(name="expression_new", description="Add a new user or phrase trigger expression")
     @app_commands.describe(
@@ -29,13 +32,15 @@ def setup(bot):
         trigger_type = trigger_type.lower()
         action = action.lower()
 
-        logger.info(f"Received expression_new command with trigger_type={trigger_type}, action={action}, trigger={trigger}, response={response}, cooldown={cooldown}")
+        logger.info(f"Received expression_new command with trigger_type={trigger_type}, action={
+                    action}, trigger={trigger}, response={response}, cooldown={cooldown}")
 
         if trigger_type == "user":
             if trigger.isdigit():
                 user_id = trigger
             else:
-                user = discord.utils.get(interaction.guild.members, name=trigger.strip("@"))
+                user = discord.utils.get(
+                    interaction.guild.members, name=trigger.strip("@"))
                 if not user:
                     await interaction.response.send_message("User not found!", ephemeral=True)
                     logger.warning(f"User not found: {trigger}")
@@ -52,7 +57,8 @@ def setup(bot):
                 "invited_at": str(interaction.guild.me.joined_at)
             }
 
-        expression_id = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
+        expression_id = ''.join(random.choices(
+            string.ascii_letters + string.digits, k=5))
         expression = {
             "id": expression_id,
             "trigger_type": trigger_type,
@@ -85,7 +91,7 @@ def setup(bot):
     @bot.tree.command(name="help", description="Show all available commands")
     async def help_command(interaction: discord.Interaction):
         embed = discord.Embed(
-            title="Expressive /help",
+            title="**Expressive** help",
             description=(
                 "**/help** - Show all available commands\n"
                 "**/expression_new** - Create a new expression\n"
@@ -100,32 +106,83 @@ def setup(bot):
 
         embed.set_footer(
             text="Expressive",
-            icon_url="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-photo%2Fespresso-with-white-background_985067-3129.jpg%3Fw%3D2000&f=1&nofb=1&ipt=903c7ea5acb50a1c4c929321fb543b89e1ea79a8b9d7787c9555edea80b3f4bc&ipo=images"
+            icon_url=icon_url
         )
 
         await interaction.response.send_message(embed=embed)
 
     @bot.tree.command(name="expression_guide", description="Show a guide on how to make expressions")
     async def expression_guide(interaction: discord.Interaction):
-        guide = """
-        **Guide to Creating Expressions:**
-        1. Use the /expression_new command to create a new expression.
-        2. Provide the trigger type (user or phrase), trigger, action, response, and cooldown.
-        3. The bot will respond with a confirmation message and the expression ID.
-        """
-        await interaction.response.send_message(guide, ephemeral=True)
+        embed = discord.Embed(
+            title="**Expressive** expression guide",
+            description=(
+                "**1.** Use the /expression_new command to create a new expression.\n"
+                "**2.** Provide the trigger type (user or phrase), trigger, action, response, and cooldown.\n"
+                "**3.** The bot will respond with a confirmation message and the expression ID.\n"
+            ),
+
+            colour=0xc15bb2,
+            timestamp=datetime.now()
+        )
+
+        embed.set_footer(
+            text="Expressive",
+            icon_url=icon_url
+        )
+
+        await interaction.response.send_message(embed=embed)
 
     @bot.tree.command(name="expression_list", description="Show a list of all expressions on the server")
     async def expression_list(interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
         server_data = load_expressions(guild_id)
-        if not server_data["expressions"]:
-            await interaction.response.send_message("No expressions found for this server.", ephemeral=False)
-            return
-
         expressions = server_data["expressions"]
-        expressions_list = "\n".join([f"ID: {exp['id']}, Trigger: {exp['trigger']}, Action: {exp['action']}, Response: {exp['response']}" for exp in expressions])
-        await interaction.response.send_message(f"**Expressions List:**\n{expressions_list}", ephemeral=False)
+
+        if not expressions:
+            embed = discord.Embed(
+                title="**Expressive** expression list",
+                description=(
+                    "No expressions found for this server."
+                ),
+
+                colour=0xc15bb2,
+                timestamp=datetime.now()
+            )
+        else:
+            embed = discord.Embed(
+                title="**Expressive** expression list",
+                colour=0xc15bb2,
+                timestamp=datetime.now()
+            )
+
+            description_lines = []
+
+            for exp in expressions:
+                trigger = exp['trigger']
+
+                # Convert user ID to username
+                if exp['trigger_type'] == "user":
+                    user = bot.get_user(int(trigger))
+                    if user is None:
+                        try:
+                            user = await bot.fetch_user(int(trigger))
+                        except discord.NotFound:
+                            user = None
+
+                    trigger = user.name if user else trigger
+
+                description_lines.append(
+                    f"**ID:** {exp['id']}, "
+                    f"**Type:** {exp['trigger_type']}, "
+                    f"**Trigger:** {trigger}, "
+                    f"**Action:** {exp['action']}, "
+                    f"**Response:** {exp['response']}"
+                )
+
+            embed.description = "\n".join(description_lines)
+
+        embed.set_footer
+        await interaction.response.send_message(embed=embed)
 
     @bot.tree.command(name="expression_delete", description="Delete an expression by ID")
     @app_commands.describe(expression_id="The ID of the expression to delete")
@@ -134,7 +191,8 @@ def setup(bot):
         server_data = load_expressions(guild_id)
         expressions = server_data.get("expressions", [])
 
-        expression_to_delete = next((exp for exp in expressions if exp["id"] == expression_id), None)
+        expression_to_delete = next(
+            (exp for exp in expressions if exp["id"] == expression_id), None)
         if expression_to_delete:
             expressions.remove(expression_to_delete)
             save_expressions(guild_id, server_data)
