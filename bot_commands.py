@@ -181,7 +181,10 @@ def setup(bot):
 
             embed.description = "\n".join(description_lines)
 
-        embed.set_footer
+        embed.set_footer(
+            text="Expressive",
+            icon_url=icon_url
+        )
         await interaction.response.send_message(embed=embed)
 
     @bot.tree.command(name="expression_delete", description="Delete an expression by ID")
