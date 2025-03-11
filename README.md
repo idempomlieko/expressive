@@ -1,5 +1,5 @@
 # Expressive | A discord chat reactions bot!
-### Current Version - v0.2 
+### Current Version - v0.2.1
 
 Expressive is a simple discord bot utilising discords discord.py library for bot and application development.
 For this to properly work, you will need to set up a discord application via the Discord Dev Portal - guide below.
