@@ -1,3 +1,10 @@
+## v0.2.2 - Friday, March 14
+- **Added** /expression_edit, which lets you edit already existing expressions
+- **Added** a new icon, which is used as the profile picture + header
+- **Changed** the contents of /expression_guide to better guide the user
+- **Changed** all occurences of "preset" in `README.md` to "expression"
+
+
 ## v0.2.1 - Saturday, March 8
 - **Extracted** file handling
 - **Changed** all occurences of preset to expression

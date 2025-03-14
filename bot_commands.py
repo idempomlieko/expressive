@@ -9,10 +9,36 @@ from file_handling import load_expressions, save_expressions
 
 logger = logging.getLogger(__name__)
 
-icon_url = "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-photo%2Fespresso-with-white-background_985067-3129.jpg%3Fw%3D2000&f=1&nofb=1&ipt=903c7ea5acb50a1c4c929321fb543b89e1ea79a8b9d7787c9555edea80b3f4bc&ipo=images"
-
+icon_url = "https://media.discordapp.net/attachments/568378850929803274/1349836095029907497/expressive_logo.png?ex=67d48c53&is=67d33ad3&hm=e61ad04e6b7d0b0d306c104d35c48bfbb6474ea4273d0b14cb040d0656d3b6af&=&width=438&height=438"
+embed_color = 0xc15bb2
+footer_text = "Expressive"
 
 def setup(bot):
+    @bot.tree.command(name="help", description="Show all available commands")
+    async def help_command(interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="**Expressive** help",
+            description=(
+                "**/help** - Show all available commands\n"
+                "**/expression_new** - Create a new expression\n"
+                "**/expression_guide** - Show a guide on how to make expressions\n"
+                "**/expression_edit** - Edit an existing expression by ID\n"
+                "**/expression_list** - Show a list of all expressions on the server\n"
+                "**/expression_delete** - Delete an expression by ID"
+            ),
+
+            colour=embed_color,
+            timestamp=datetime.now()
+        )
+
+        embed.set_footer(
+            text=footer_text,
+            icon_url=icon_url
+        )
+
+        await interaction.response.send_message(embed=embed)
+
+
     @bot.tree.command(name="expression_new", description="Add a new user or phrase trigger expression")
     @app_commands.describe(
         trigger_type="Trigger type: user or phrase",
@@ -32,7 +58,7 @@ def setup(bot):
         trigger_type = trigger_type.lower()
         action = action.lower()
 
-        logger.info(f"Received expression_new command with trigger_type={trigger_type}, action={
+        logger.info(f"Received expression_new command with trigger_type={trigger_type}, action={ \
                     action}, trigger={trigger}, response={response}, cooldown={cooldown}")
 
         if trigger_type == "user":
@@ -87,48 +113,80 @@ def setup(bot):
             app_commands.Choice(name="Reply", value="reply"),
             app_commands.Choice(name="React", value="react")
         ]
+    
+    @bot.tree.command(name="expression_edit", description="Edit an existing expression by ID")
+    @app_commands.describe(
+        expression_id="The ID of the expression to edit",
+        trigger_type="New trigger type: user or phrase",
+        trigger="New user ID or phrase",
+        action="New action",
+        response="New message, URL, or emoji",
+        cooldown="New cooldown in minutes"
+    )
+    async def expression_edit(
+        interaction: discord.Interaction,
+        expression_id: str,
+        trigger_type: str = None,
+        trigger: str = None,
+        action: str = None,
+        response: str = None,
+        cooldown: int = None
+    ):
+        guild_id = str(interaction.guild.id)
+        server_data = load_expressions(guild_id)
+        expressions = server_data.get("expressions", [])
 
-    @bot.tree.command(name="help", description="Show all available commands")
-    async def help_command(interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="**Expressive** help",
-            description=(
-                "**/help** - Show all available commands\n"
-                "**/expression_new** - Create a new expression\n"
-                "**/expression_guide** - Show a guide on how to make expressions\n"
-                "**/expression_list** - Show a list of all expressions on the server\n"
-                "**/expression_delete** - Delete an expression by ID"
-            ),
+        expression_to_edit = next(
+            (exp for exp in expressions if exp["id"] == expression_id), None)
+        if not expression_to_edit:
+            await interaction.response.send_message(f"No expression found with ID {expression_id}.", ephemeral=True)
+            return
 
-            colour=0xc15bb2,
-            timestamp=datetime.now()
-        )
+        if trigger_type:
+            expression_to_edit["trigger_type"] = trigger_type.lower()
+        if trigger:
+            expression_to_edit["trigger"] = trigger
+        if action:
+            expression_to_edit["action"] = action.lower()
+        if response:
+            expression_to_edit["response"] = response
+        if cooldown is not None:
+            expression_to_edit["cooldown"] = cooldown
 
-        embed.set_footer(
-            text="Expressive",
-            icon_url=icon_url
-        )
-
-        await interaction.response.send_message(embed=embed)
+        save_expressions(guild_id, server_data)
+        logger.info(f"Expression edited: {expression_to_edit}")
+        await interaction.response.send_message(f"Expression with ID {expression_id} edited successfully.", ephemeral=True)
 
     @bot.tree.command(name="expression_guide", description="Show a guide on how to make expressions")
     async def expression_guide(interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="**Expressive** expression guide",
-            description=(
-                "**1.** Use the /expression_new command to create a new expression.\n"
-                "**2.** Provide the trigger type (user or phrase), trigger, action, response, and cooldown.\n"
-                "**3.** The bot will respond with a confirmation message and the expression ID.\n"
-            ),
-
-            colour=0xc15bb2,
-            timestamp=datetime.now()
-        )
-
+        embed = discord.Embed(title="Expression Guide",
+                      description="Any problems creating an expression? This guide will help!",
+                      colour=embed_color,
+                      timestamp=datetime.now())
+        embed.add_field(name="Using /expression_new",
+                            value="This slash command will autofill all settable parameters for Expressions with options for all.",
+                            inline=False)
+        embed.add_field(name="Trigger Type - User / Phrase",
+                            value="The parameter `trigger_type` will decide what will trigger this expression. **User** means that this expression will trigger when said user sends a message. **Phrase** means it will trigger when a set phrase is used.",
+                            inline=False)
+        embed.add_field(name="Trigger - UID / Phrase",
+                            value="The parameter `trigger` will set the actual trigger for this expression. If `trigger_type` is set to **User**, input a user ID. If it's set to **Phrase**, input a custom phrase.",
+                            inline=False)
+        embed.add_field(name="Action - Send / Reply / React",
+                            value="The parameter `action` will set what the bot will do in response to an expression being triggered. **Send** will send a message (without a reply). **Reply** will reply (with ping) to the message that triggered the expression. **React** will react with a set emote to the trigger.",
+                            inline=False)
+        embed.add_field(name="Response - Text / Emote",
+                            value="The parameter `response` is a free field which allows you to set what the bot will respond with upon triggering the expression. If `action` is set to **React**, you __HAVE__ to input a single emoji that the bot has access to.",
+                            inline=False)
+        embed.add_field(name="Cooldown - Number",
+                            value="The parameter `cooldown` sets how long until this expression can be triggered again. The unit is **Minutes**. Setting `cooldown` to **0** means there will be no cooldown, and the expression will trigger whenever possible. The same expression will **NOT** trigger multiple times on one message, regardless if the trigger phrase was used more than once. However, multiple expressions can trigger on one message.",
+                            inline=False)
         embed.set_footer(
-            text="Expressive",
+            text=footer_text,
             icon_url=icon_url
         )
+                         
+
 
         await interaction.response.send_message(embed=embed)
 
@@ -160,7 +218,6 @@ def setup(bot):
             for exp in expressions:
                 trigger = exp['trigger']
 
-                # Convert user ID to username
                 if exp['trigger_type'] == "user":
                     user = bot.get_user(int(trigger))
                     if user is None:

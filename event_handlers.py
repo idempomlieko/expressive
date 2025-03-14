@@ -32,7 +32,7 @@ def setup(bot):
                 time_left = cooldowns[cooldown_key] - \
                     asyncio.get_event_loop().time()
                 if time_left > 0:
-                    logger.info(f"Cooldown active for expression {expression_id}: {
+                    logger.info(f"Cooldown active for expression {expression_id}: { \
                                 time_left:.2f} seconds remaining.")
                     continue
 

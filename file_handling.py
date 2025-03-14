@@ -4,6 +4,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def ensure_fields(data, defaults):
+    for key, value in defaults.items():
+        if key not in data:
+            data[key] = value
+        elif isinstance(value, dict):
+            ensure_fields(data[key], value)
+    return data
 
 def load_expressions(guild_id):
     dir = "serverdata"
@@ -18,13 +25,15 @@ def load_expressions(guild_id):
 
     try:
         with open(filepath, "r") as file:
-            logger.info(f"Loading expressions for guild {
-                        guild_id} from {filepath}")
-            return json.load(file)
+            logger.info(f"Loading expressions for guild {guild_id} from {filepath}")
+            data = json.load(file)
+            
+            data = ensure_fields(data, {"info": {}, "expressions": []})
+
+            return data
     except (json.JSONDecodeError) as e:
         logger.error(f"Failed to load expressions for guild {guild_id}: {e}")
         return {"info": {}, "expressions": []}
-
 
 def save_expressions(guild_id, data):
     dir = "serverdata"
