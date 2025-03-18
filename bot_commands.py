@@ -1,5 +1,6 @@
 import discord
 from discord import app_commands
+from discord.ui import View, Button, Select
 from datetime import datetime
 import logging
 import random
@@ -13,7 +14,101 @@ icon_url = "https://media.discordapp.net/attachments/568378850929803274/13498360
 embed_color = 0xc15bb2
 footer_text = "Expressive"
 
+class ExpressionSelect(Select):
+    def __init__(self, expressions):
+        options = [
+            discord.SelectOption(label=exp['id'], description=exp['trigger'])
+            for exp in expressions
+        ]
+        super().__init__(placeholder="Select an expression...", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_id = self.values[0]
+        guild_id = str(interaction.guild.id)
+        server_data = load_expressions(guild_id)
+        expression = next((exp for exp in server_data["expressions"] if exp["id"] == selected_id), None)
+
+        if expression:
+            embed = discord.Embed(
+                title=f"Expression Details - {expression['id']}",
+                colour=embed_color,
+                timestamp=datetime.now()
+            )
+            embed.add_field(name="Trigger Type", value=expression["trigger_type"], inline=True)
+            embed.add_field(name="Trigger", value=expression["trigger"], inline=True)
+            embed.add_field(name="Action", value=expression["action"], inline=True)
+            embed.add_field(name="Response", value=expression["response"], inline=True)
+            embed.add_field(name="Cooldown", value=f"{expression['cooldown']} minutes", inline=True)
+            embed.add_field(name="Created By", value=expression["created_by"], inline=True)
+            embed.set_footer(text=footer_text, icon_url=icon_url)
+
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+class Paginator(View):
+    def __init__(self, expressions, page_size=10):
+        super().__init__(timeout=None)
+        self.expressions = expressions
+        self.page_size = page_size
+        self.current_page = 0
+
+        self.left_button = Button(label="⬅️", style=discord.ButtonStyle.primary)
+        self.right_button = Button(label="➡️", style=discord.ButtonStyle.primary)
+
+        self.left_button.callback = self.previous_page
+        self.right_button.callback = self.next_page
+
+        self.add_item(self.left_button)
+        self.add_item(self.right_button)
+        self.add_item(ExpressionSelect(expressions))
+
+    async def previous_page(self, interaction: discord.Interaction):
+        if self.current_page > 0:
+            self.current_page -= 1
+            await self.update_message(interaction)
+
+    async def next_page(self, interaction: discord.Interaction):
+        if (self.current_page + 1) * self.page_size < len(self.expressions):
+            self.current_page += 1
+            await self.update_message(interaction)
+
+    async def update_message(self, interaction: discord.Interaction):
+        start = self.current_page * self.page_size
+        end = start + self.page_size
+        expressions_to_show = self.expressions[start:end]
+
+        embed = discord.Embed(
+            title="**Expressive** expression list",
+            colour=embed_color,
+            timestamp=datetime.now()
+        )
+
+        description_lines = [
+            "**ID** | **Trigger** | **Action** | **Creator**"
+        ]
+
+        for exp in expressions_to_show:
+            trigger = exp['trigger']
+            if exp['trigger_type'] == "user":
+                user = interaction.guild.get_member(int(trigger))
+                trigger = user.name if user else trigger
+
+            description_lines.append(
+                f"{exp['id']} | {trigger} | {exp['action']} | {exp['created_by']}"
+            )
+
+        embed.description = "\n".join(description_lines)
+        embed.set_footer(
+            text=f"Showing {start + 1}-{min(end, len(self.expressions))} of {len(self.expressions)}",
+            icon_url=icon_url
+        )
+
+        await interaction.response.edit_message(embed=embed, view=self)
+
+
 def setup(bot):
+
+    # /help
+
     @bot.tree.command(name="help", description="Show all available commands")
     async def help_command(interaction: discord.Interaction):
         embed = discord.Embed(
@@ -26,18 +121,16 @@ def setup(bot):
                 "**/expression_list** - Show a list of all expressions on the server\n"
                 "**/expression_delete** - Delete an expression by ID"
             ),
-
             colour=embed_color,
             timestamp=datetime.now()
         )
-
         embed.set_footer(
             text=footer_text,
             icon_url=icon_url
         )
-
         await interaction.response.send_message(embed=embed)
 
+    # /expression_new
 
     @bot.tree.command(name="expression_new", description="Add a new user or phrase trigger expression")
     @app_commands.describe(
@@ -194,55 +287,48 @@ def setup(bot):
     async def expression_list(interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
         server_data = load_expressions(guild_id)
-        expressions = server_data["expressions"]
+        expressions = server_data.get("expressions", [])
 
         if not expressions:
             embed = discord.Embed(
                 title="**Expressive** expression list",
-                description=(
-                    "No expressions found for this server."
-                ),
-
-                colour=0xc15bb2,
+                description="No expressions found for this server.",
+                colour=embed_color,
                 timestamp=datetime.now()
             )
+            embed.set_footer(text=footer_text, icon_url=icon_url)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
+            paginator = Paginator(expressions)
+            start = 0
+            end = min(paginator.page_size, len(expressions))
+
             embed = discord.Embed(
                 title="**Expressive** expression list",
-                colour=0xc15bb2,
+                colour=embed_color,
                 timestamp=datetime.now()
             )
 
-            description_lines = []
-
-            for exp in expressions:
+            description_lines = [
+                "**ID** | **Type** | **Response**"
+            ]
+            for exp in expressions[start:end]:
                 trigger = exp['trigger']
-
                 if exp['trigger_type'] == "user":
-                    user = bot.get_user(int(trigger))
-                    if user is None:
-                        try:
-                            user = await bot.fetch_user(int(trigger))
-                        except discord.NotFound:
-                            user = None
-
+                    user = interaction.guild.get_member(int(trigger))
                     trigger = user.name if user else trigger
 
                 description_lines.append(
-                    f"**ID:** {exp['id']}, "
-                    f"**Type:** {exp['trigger_type']}, "
-                    f"**Trigger:** {trigger}, "
-                    f"**Action:** {exp['action']}, "
-                    f"**Response:** {exp['response']}"
+                    f"{exp['id']} | {exp['trigger_type']} | {exp['response']}"
                 )
 
             embed.description = "\n".join(description_lines)
+            embed.set_footer(
+                text=f"Showing {start + 1}-{end} of {len(expressions)}",
+                icon_url=icon_url
+            )
 
-        embed.set_footer(
-            text="Expressive",
-            icon_url=icon_url
-        )
-        await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed, view=paginator)
 
     @bot.tree.command(name="expression_delete", description="Delete an expression by ID")
     @app_commands.describe(expression_id="The ID of the expression to delete")
