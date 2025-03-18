@@ -319,7 +319,7 @@ def setup(bot):
                     trigger = user.name if user else trigger
 
                 description_lines.append(
-                    f"{exp['id']} | {exp['trigger_type']} | {exp['response'] | exp['created_by']}"
+                    f"{exp['id']} | {exp['trigger_type']} | {exp['response']} | {exp['created_by']}"
                 )
 
             embed.description = "\n".join(description_lines)
