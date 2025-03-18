@@ -310,7 +310,7 @@ def setup(bot):
             )
 
             description_lines = [
-                "**ID** | **Type** | **Response**"
+                "**ID** | **Type** | **Response** | **Creator**"
             ]
             for exp in expressions[start:end]:
                 trigger = exp['trigger']
@@ -319,7 +319,7 @@ def setup(bot):
                     trigger = user.name if user else trigger
 
                 description_lines.append(
-                    f"{exp['id']} | {exp['trigger_type']} | {exp['response']}"
+                    f"{exp['id']} | {exp['trigger_type']} | {exp['response'] | exp['created_by']}"
                 )
 
             embed.description = "\n".join(description_lines)
