@@ -1,3 +1,4 @@
+from announce import send_intro_message
 import discord
 from discord.ext import commands
 import config
@@ -27,7 +28,7 @@ async def on_ready():
         logger.info("Presence loaded.")
     except Exception as e:
         logger.error(f"Failed to set presence: {e}")
-
+    await send_intro_message(bot)
     logger.info(f"Logged in as {bot.user}.")
 
 event_handlers.setup(bot)

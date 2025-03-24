@@ -25,14 +25,14 @@ def load_expressions(guild_id):
 
     try:
         with open(filepath, "r") as file:
-            logger.info(f"Loading expressions for guild {guild_id} from {filepath}")
+            #logger.info(f"Loading expressions for guild {guild_id} from {filepath}")
             data = json.load(file)
             
             data = ensure_fields(data, {"info": {}, "expressions": []})
 
             return data
     except (json.JSONDecodeError) as e:
-        logger.error(f"Failed to load expressions for guild {guild_id}: {e}")
+        # logger.error(f"Failed to load expressions for guild {guild_id}: {e}")
         return {"info": {}, "expressions": []}
 
 def save_expressions(guild_id, data):
@@ -44,4 +44,4 @@ def save_expressions(guild_id, data):
 
     with open(filepath, "w") as file:
         json.dump(data, file, indent=4)
-        logger.info(f"Expressions for guild {guild_id} saved to {filepath}")
+        # logger.info(f"Expressions for guild {guild_id} saved to {filepath}")

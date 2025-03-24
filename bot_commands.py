@@ -1,9 +1,10 @@
+import asyncio
+import config
 import discord
-import re
 import logging
 import random
+import re
 import string
-import asyncio
 
 from discord import app_commands
 from discord.ui import View, Button, Select
@@ -13,296 +14,40 @@ from file_handling import load_expressions, save_expressions
 
 logger = logging.getLogger(__name__)
 
-icon_url = "https://media.discordapp.net/attachments/568378850929803274/1349836095029907497/expressive_logo.png?ex=67d48c53&is=67d33ad3&hm=e61ad04e6b7d0b0d306c104d35c48bfbb6474ea4273d0b14cb040d0656d3b6af&=&width=438&height=438"
+icon = config.ICON_URL
 embed_color = 0xc15bb2
 footer_text = "Expressive"
 
-class ExpressionSelect(Select):
-    def __init__(self, expressions):
-        options = [
-            discord.SelectOption(label=exp['id'], description=exp['trigger'])
-            for exp in expressions
-        ]
-        super().__init__(placeholder="Select an expression...", options=options, min_values=1, max_values=1)
-
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-
-    def update_options(self, expressions):
-        self.options = [
-            discord.SelectOption(label=exp['id'], description=exp['trigger'])
-            for exp in expressions
-        ]
-
-
-class Paginator(View):
-    def __init__(self, expressions, page_size=10):
-        super().__init__(timeout=None)
-        self.expressions = expressions
-        self.page_size = page_size
-        self.current_page = 0
-
-        self.left_button = Button(label="⬅️", style=discord.ButtonStyle.primary)
-        self.right_button = Button(label="➡️", style=discord.ButtonStyle.primary)
-
-        self.left_button.callback = self.previous_page
-        self.right_button.callback = self.next_page
-
-        self.expression_select = ExpressionSelect(self.get_current_page_expressions())
-        self.add_item(self.left_button)
-        self.add_item(self.right_button)
-        self.add_item(self.expression_select)
-
-    def get_current_page_expressions(self):
-        start = self.current_page * self.page_size
-        end = start + self.page_size
-        return self.expressions[start:end]
-
-    async def previous_page(self, interaction: discord.Interaction):
-        if self.current_page > 0:
-            self.current_page -= 1
-            await self.update_message(interaction)
-
-    async def next_page(self, interaction: discord.Interaction):
-        if (self.current_page + 1) * self.page_size < len(self.expressions):
-            self.current_page += 1
-            await self.update_message(interaction)
-
-    async def update_message(self, interaction: discord.Interaction):
-        current_expressions = self.get_current_page_expressions()
-        self.expression_select.update_options(current_expressions)
-
-        start = self.current_page * self.page_size
-        end = start + self.page_size
-
-        embed = discord.Embed(
-            title="**Expressive** expression list",
-            colour=embed_color,
-            timestamp=datetime.now()
-        )
-
-        description_lines = [
-            "**ID** | **Trigger** | **Action** | **Creator**"
-        ]
-
-        for exp in current_expressions:
-            trigger = exp['trigger']
-            if exp['trigger_type'] == "user":
-                user = interaction.guild.get_member(int(trigger))
-                trigger = user.name if user else trigger
-
-            description_lines.append(
-                f"{exp['id']} | {trigger} | {exp['action']} | {exp['created_by']}"
-            )
-
-        embed.description = "\n".join(description_lines)
-        embed.set_footer(
-            text=f"Showing {start + 1}-{min(end, len(self.expressions))} of {len(self.expressions)}",
-            icon_url=icon_url
-        )
-
-        await interaction.response.edit_message(embed=embed, view=self)
-
-
-class ExpressionRoleView(View):
-    def __init__(self, interaction: discord.Interaction, server_data):
-        super().__init__(timeout=60)
-        self.interaction = interaction
-        self.server_data = server_data
-
-    async def on_timeout(self):
-        pass
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user != self.interaction.user:
-            await interaction.response.send_message("You cannot interact with this menu.", ephemeral=True)
-            return False
-        return True
-
-    @discord.ui.button(label="Admins only", style=discord.ButtonStyle.primary)
-    async def admin_button(self, interaction: discord.Interaction, button: Button):
-        self.server_data["info"]["expression_perms"] = {"type": "admin", "role_id": None}
-        save_expressions(str(interaction.guild.id), self.server_data)
-        await self.update_embed(interaction, "Admins only")
-
-    @discord.ui.button(label="Everyone", style=discord.ButtonStyle.primary)
-    async def everyone_button(self, interaction: discord.Interaction, button: Button):
-        self.server_data["info"]["expression_perms"] = {"type": "everyone", "role_id": None}
-        save_expressions(str(interaction.guild.id), self.server_data)
-        await self.update_embed(interaction, "Everyone")
-
-    @discord.ui.button(label="Tag Role", style=discord.ButtonStyle.primary)
-    async def role_button(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message("Please tag a role to set permissions.", ephemeral=True)
-
-        def check(message):
-            return (
-                message.author == interaction.user
-                and message.channel == interaction.channel
-                and len(message.role_mentions) > 0
-            )
-
-        try:
-            message = await interaction.client.wait_for("message", check=check, timeout=30)
-            role = message.role_mentions[0]
-            self.server_data["info"]["expression_perms"] = {"type": "role", "role_id": role.id}
-            save_expressions(str(interaction.guild.id), self.server_data)
-            await message.reply(f"Expression permissions set to @{role.name}.", ephemeral=True)
-        except asyncio.TimeoutError:
-            await interaction.followup.send("You took too long to respond. Please try again.", ephemeral=True)
-
-    async def update_embed(self, interaction: discord.Interaction, new_setting: str):
-        embed = discord.Embed(
-            title="Expression Role Settings",
-            description=f"Currently set to: **{new_setting}**\n\n"
-                        "1️⃣ **Admins only**\n"
-                        "2️⃣ **Everyone**\n"
-                        "3️⃣ **Tag Role**",
-            colour=embed_color,
-            timestamp=datetime.now()
-        )
-        embed.set_footer(text=footer_text, icon_url=icon_url)
-        await interaction.response.edit_message(embed=embed, view=self)
-
-
-
-def make_logs_embed(server_data):
-    logs = server_data["info"].get("expression_logs", {})
-    current_channel = "None" if not logs.get("channel_id") else f"<#{logs['channel_id']}>"
-    lines = [
-        f"**Current log channel:** {current_channel}",
-        "",
-        f"**Created New Expression:** {'ON' if logs['log_create'] else 'OFF'}",
-        f"**Edited Expression:** {'ON' if logs['log_edit'] else 'OFF'}",
-        f"**Deleted Expression:** {'ON' if logs['log_delete'] else 'OFF'}",
-        f"**Expression Triggered:** {'ON' if logs['log_trigger'] else 'OFF'}",
-        "",
-        "Use the buttons below to toggle each option or set a new channel."
-    ]
-
-    embed = discord.Embed(
-        title="Expression Logs Settings",
-        description="\n".join(lines),
-        colour=embed_color,
-        timestamp=datetime.now()
-    )
-    embed.set_footer(text=footer_text, icon_url=icon_url)
-    return embed
-
-
-async def send_log(interaction: discord.Interaction, log_type: str, log_message: str):
-    guild_id = str(interaction.guild.id)
-    server_data = load_expressions(guild_id)
-    logs = server_data["info"].get("expression_logs", {})
-    channel_id = logs.get("channel_id")
-
-    if not logs.get(log_type, False):
-        return
-
-    if channel_id:
-        channel = interaction.guild.get_channel(channel_id)
-        if channel:
-            await channel.send(log_message)
-
-
-class ExpressionLogsView(View):
-    def __init__(self, interaction: discord.Interaction, server_data):
-        super().__init__(timeout=60)
-        self.interaction = interaction
-        self.server_data = server_data
-
-    async def on_timeout(self):
-        pass
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user != self.interaction.user:
-            await interaction.response.send_message("You cannot use this.", ephemeral=True)
-            return False
-        return True
-
-    @discord.ui.button(label="Toggle Create Logs", style=discord.ButtonStyle.primary)
-    async def toggle_create(self, interaction: discord.Interaction, button: Button):
-        logs = self.server_data["info"]["expression_logs"]
-        logs["log_create"] = not logs["log_create"]
-        save_expressions(str(interaction.guild.id), self.server_data)
-        await self.update_message(interaction)
-
-    @discord.ui.button(label="Toggle Edit Logs", style=discord.ButtonStyle.primary)
-    async def toggle_edit(self, interaction: discord.Interaction, button: Button):
-        logs = self.server_data["info"]["expression_logs"]
-        logs["log_edit"] = not logs["log_edit"]
-        save_expressions(str(interaction.guild.id), self.server_data)
-        await self.update_message(interaction)
-
-    @discord.ui.button(label="Toggle Delete Logs", style=discord.ButtonStyle.primary)
-    async def toggle_delete(self, interaction: discord.Interaction, button: Button):
-        logs = self.server_data["info"]["expression_logs"]
-        logs["log_delete"] = not logs["log_delete"]
-        save_expressions(str(interaction.guild.id), self.server_data)
-        await self.update_message(interaction)
-
-    @discord.ui.button(label="Toggle Trigger Logs", style=discord.ButtonStyle.primary)
-    async def toggle_trigger(self, interaction: discord.Interaction, button: Button):
-        logs = self.server_data["info"]["expression_logs"]
-        logs["log_trigger"] = not logs["log_trigger"]
-        save_expressions(str(interaction.guild.id), self.server_data)
-        await self.update_message(interaction)
-
-    @discord.ui.button(label="Change Channel", style=discord.ButtonStyle.secondary)
-    async def change_channel(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message("Tag the new logs channel:", ephemeral=True)
-
-        def check(msg):
-            return (
-                msg.author == interaction.user
-                and msg.channel == interaction.channel
-                and len(msg.channel_mentions) > 0
-            )
-
-        try:
-            msg = await interaction.client.wait_for("message", check=check, timeout=30)
-            channel_id = msg.channel_mentions[0].id
-            self.server_data["info"]["expression_logs"]["channel_id"] = channel_id
-            save_expressions(str(interaction.guild.id), self.server_data)
-            await interaction.followup.send(f"Expression logs channel set to <#{channel_id}>.", ephemeral=True)
-        except asyncio.TimeoutError:
-            await interaction.followup.send("You took too long to respond. Please try again.", ephemeral=True)
-
-
 def setup(bot):
-
-# ----------------------------------------------------------------- /HELP
-
     @bot.tree.command(name="help", description="Show all available commands")
     async def help_command(interaction: discord.Interaction):
         embed = discord.Embed(
             title="**Expressive** help",
             description=(
-                "**/help** - All available commands\n"
-                "**/expression_guide** - A guide on how to make expressions\n"
+                "**/help** - Show all available commands\n"
                 "**/expression_new** - Create a new expression\n"
-                "**/expression_delete** - Delete an expression by ID\n"
+                "**/expression_guide** - Show a guide on how to make expressions\n"
                 "**/expression_edit** - Edit an existing expression by ID\n"
                 "**/expression_list** - Show a list of all expressions on the server\n"
+                "**/expression_delete** - Delete an expression by ID\n"
                 "**/expression_info** - Show detailed information about an expression by ID\n"
-                "**/expression_role** - Set who can manage expressions (admin only)\n"
-                "**/expression_logs** - Configure logging for Expressions (admin only)"
+                "**/expression_role** - Set who can manage expressions\n"
+                "**/expression_logs** - Configure logging for Expressions"
             ),
             colour=embed_color,
             timestamp=datetime.now()
         )
         embed.set_footer(
             text=footer_text,
-            icon_url=icon_url
+            icon_url=icon
         )
         await interaction.response.send_message(embed=embed)
 
-# ----------------------------------------------------------------- /EXPRESSION_NEW
 
     @bot.tree.command(name="expression_new", description="Add a new user or phrase trigger expression")
     @app_commands.describe(
         trigger_type="Trigger type: user or phrase",
-        trigger="User ID, mention, or phrase",
+        trigger="User ID or phrase",
         action="Select an action",
         response="Message, URL, or emoji",
         cooldown="Cooldown in minutes"
@@ -318,6 +63,9 @@ def setup(bot):
         trigger_type = trigger_type.lower()
         action = action.lower()
 
+        #logger.info(f"Received expression_new command with trigger_type={trigger_type}, action={ \
+                    #action}, trigger={trigger}, response={response}, cooldown={cooldown}")
+
         if trigger_type == "user":
             match = re.match(r"<@!?(\d+)>", trigger)
             if match:
@@ -328,7 +76,6 @@ def setup(bot):
                 user = discord.utils.get(interaction.guild.members, name=trigger)
                 if not user:
                     await interaction.response.send_message("User not found!", ephemeral=True)
-                    logger.warning(f"User not found: {trigger}")
                     return
                 user_id = str(user.id)
             trigger = user_id
@@ -355,7 +102,7 @@ def setup(bot):
         }
         server_data["expressions"].append(expression)
         save_expressions(guild_id, server_data)
-
+        # logger.info(f"Expression added: {expression}")
         log_message = (
             f"**New Expression Created**\n"
             f"**ID:** {expression_id}\n"
@@ -421,7 +168,7 @@ def setup(bot):
             expression_to_edit["cooldown"] = cooldown
 
         save_expressions(guild_id, server_data)
-
+        #logger.info(f"Expression edited: {expression_to_edit}")
         changes = []
         if trigger_type:
             changes.append(f"Trigger Type: {expression_to_edit['trigger_type']} -> {trigger_type.lower()}")
@@ -438,9 +185,7 @@ def setup(bot):
         if cooldown is not None:
             changes.append(f"Cooldown: {expression_to_edit['cooldown']} -> {cooldown}")
             expression_to_edit["cooldown"] = cooldown
-
         save_expressions(guild_id, server_data)
-
         log_message = (
             f"**Expression Edited**\n"
             f"**ID:** {expression_id}\n"
@@ -450,7 +195,6 @@ def setup(bot):
         await send_log(interaction, "log_edit", log_message)
         await interaction.response.send_message(f"Expression with ID {expression_id} edited successfully.", ephemeral=True)
 
-# ----------------------------------------------------------------- /EXPRESSION_GUIDE
 
     @bot.tree.command(name="expression_guide", description="Show a guide on how to make expressions")
     async def expression_guide(interaction: discord.Interaction):
@@ -478,65 +222,10 @@ def setup(bot):
                             inline=False)
         embed.set_footer(
             text=footer_text,
-            icon_url=icon_url
-        )           
-
+            icon_url=icon
+        )
         await interaction.response.send_message(embed=embed)
 
-# ----------------------------------------------------------------- /EXPRESSION_LIST
-
-    @bot.tree.command(name="expression_list", description="Show a list of all expressions on the server")
-    async def expression_list(interaction: discord.Interaction):
-        guild_id = str(interaction.guild.id)
-        server_data = load_expressions(guild_id)
-        expressions = server_data.get("expressions", [])
-
-        if not expressions:
-            embed = discord.Embed(
-                title="**Expressive** expression list",
-                description="No expressions found for this server.",
-                colour=embed_color,
-                timestamp=datetime.now()
-            )
-            embed.set_footer(text=footer_text, icon_url=icon_url)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            paginator = Paginator(expressions)
-            start = 0
-            end = min(paginator.page_size, len(expressions))
-
-            embed = discord.Embed(
-                title="**Expressive** expression list",
-                colour=embed_color,
-                timestamp=datetime.now()
-            )
-
-            description_lines = [
-                "**ID** | **Type** | **Response** | **Creator**"
-            ]
-            for exp in expressions[start:end]:
-                trigger = exp['trigger']
-                if exp['trigger_type'] == "user":
-                    user = interaction.guild.get_member(int(trigger))
-                    trigger = user.name if user else trigger
-
-                response = exp['response']
-                if len(response) > 10:
-                    response = response[:10] + "..."
-
-                description_lines.append(
-                    f"{exp['id']} | {exp['trigger_type']} | {response} | {exp['created_by']}"
-                )
-
-            embed.description = "\n".join(description_lines)
-            embed.set_footer(
-                text=f"Showing {start + 1}-{end} of {len(expressions)}",
-                icon_url=icon_url
-            )
-
-            await interaction.response.send_message(embed=embed, view=paginator)
-
-# ----------------------------------------------------------------- /EXPRESSION_DELETE
 
     @bot.tree.command(name="expression_delete", description="Delete an expression by ID")
     @app_commands.describe(expression_id="The ID of the expression to delete")
@@ -550,13 +239,12 @@ def setup(bot):
         if expression_to_delete:
             expressions.remove(expression_to_delete)
             save_expressions(guild_id, server_data)
-
+            # logger.info(f"Expression deleted: {expression_to_delete}")
             log_message = (
-                f"**Expression Deleted**\n"
-                f"**ID:** {expression_id}\n"
-                f"**Deleted By:** {interaction.user}"
+            f"**Expression Deleted**\n"
+            f"**ID:** {expression_id}\n"
             )
-            await send_log(interaction, "log_delete", log_message)
+            await send_log(interaction, "log_create", log_message)
             await interaction.response.send_message(f"Expression with ID {expression_id} deleted successfully.", ephemeral=True)
         else:
             await interaction.response.send_message(f"No expression found with ID {expression_id}.", ephemeral=True)
@@ -586,18 +274,127 @@ def setup(bot):
             embed.add_field(name="Response", value=expression["response"], inline=True)
             embed.add_field(name="Cooldown", value=f"{expression['cooldown']} minutes", inline=True)
             embed.add_field(name="Created By", value=expression["created_by"], inline=True)
-            embed.set_footer(text=footer_text, icon_url=icon_url)
+            embed.set_footer(text=footer_text, icon_url=icon)
 
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed, ephemeral=False)
         else:
-            await interaction.response.send_message(f"No expression found with ID {expression_id}.", ephemeral=True)
+            await interaction.response.send_message(f"No expression found with ID {expression_id}.", ephemeral=False)
 
-# ----------------------------------------------------------------- /EXPRESSION_ROLE
+    class ExpressionListView(View):
+        def __init__(self, interaction, expressions, page=0):
+            super().__init__(timeout=None)
+            self.interaction = interaction
+            self.expressions = expressions
+            self.page = page
+            self.update_view()
+
+        def update_view(self):
+            self.clear_items()
+            start = self.page * 10
+            end = start + 10
+            current_expressions = self.expressions[start:end]
+
+            select = Select(placeholder="Select an expression by ID", min_values=1, max_values=1)
+            for exp in current_expressions:
+                select.add_option(label=exp["id"], value=exp["id"])
+            select.callback = self.select_callback
+            self.add_item(select)
+
+            if self.page > 0:
+                left_button = Button(label="⬅️", style=discord.ButtonStyle.primary)
+                left_button.callback = self.left_callback
+                self.add_item(left_button)
+
+            if end < len(self.expressions):
+                right_button = Button(label="➡️", style=discord.ButtonStyle.primary)
+                right_button.callback = self.right_callback
+                self.add_item(right_button)
+
+        def create_embed(self):
+            start = self.page * 10
+            end = min(start + 10, len(self.expressions))
+            current_expressions = self.expressions[start:end]
+
+            embed = discord.Embed(
+                title="Expression List",
+                colour=embed_color,
+                timestamp=datetime.now()
+            )
+
+            expression_lines = []
+            for exp in current_expressions:
+                truncated_response = (exp["response"][:10] + "...") if len(exp["response"]) > 10 else exp["response"]
+                expression_lines.append(f"{exp['id']} | {exp['trigger_type']} | {truncated_response} | {exp['created_by']}")
+
+            embed.add_field(
+                name="ID | Type | Response | Creator",
+                value="\n".join(expression_lines),
+                inline=False
+            )
+
+            embed.set_footer(
+                text=f"Showing {start + 1}-{end}/{len(self.expressions)}",
+                icon_url=icon
+            )
+            return embed
+
+        async def select_callback(self, interaction: discord.Interaction):
+            selected_id = interaction.data["values"][0]
+            expression = next((exp for exp in self.expressions if exp["id"] == selected_id), None)
+            if expression:
+                trigger = expression["trigger"]
+                if expression["trigger_type"] == "user":
+                    trigger = f"<@{trigger}>"
+
+                embed = discord.Embed(
+                    title=f"Expression Details - {expression['id']}",
+                    colour=embed_color,
+                    timestamp=datetime.now()
+                )
+                embed.add_field(name="Trigger Type", value=expression["trigger_type"], inline=True)
+                embed.add_field(name="Trigger", value=trigger, inline=True)
+                embed.add_field(name="Action", value=expression["action"], inline=True)
+                embed.add_field(name="Response", value=expression["response"], inline=True)
+                embed.add_field(name="Cooldown", value=f"{expression['cooldown']} minutes", inline=True)
+                embed.add_field(name="Created By", value=expression["created_by"], inline=True)
+                embed.set_footer(text=footer_text, icon_url=icon)
+
+                await interaction.response.send_message(embed=embed, ephemeral=False)
+            else:
+                await interaction.response.send_message("Expression not found.", ephemeral=False)
+
+        async def left_callback(self, interaction: discord.Interaction):
+            self.page -= 1
+            self.update_view()
+            embed = self.create_embed()
+            await interaction.response.edit_message(embed=embed, view=self)
+
+        async def right_callback(self, interaction: discord.Interaction):
+            self.page += 1
+            self.update_view()
+            embed = self.create_embed()
+            await interaction.response.edit_message(embed=embed, view=self)
+
+
+    @bot.tree.command(name="expression_list", description="Show a list of all expressions on the server")
+    async def expression_list(interaction: discord.Interaction):
+        guild_id = str(interaction.guild.id)
+        server_data = load_expressions(guild_id)
+        expressions = server_data.get("expressions", [])
+
+        if not expressions:
+            await interaction.response.send_message("No expressions found on this server.", ephemeral=False)
+            return
+
+        view = ExpressionListView(interaction, expressions)
+        embed = view.create_embed()
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=False)
+
 
     @bot.tree.command(name="expression_role", description="Set who can manage expressions (Admins, Everyone, or a specific role)")
     async def expression_role(interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+            await interaction.response.send_message("You do not have permission to use this command.", ephemeral=False)
             return
 
         guild_id = str(interaction.guild.id)
@@ -624,10 +421,10 @@ def setup(bot):
             colour=embed_color,
             timestamp=datetime.now()
         )
-        embed.set_footer(text=footer_text, icon_url=icon_url)
+        embed.set_footer(text=footer_text, icon_url=icon)
 
         view = ExpressionRoleView(interaction, server_data)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=False)
 
 # ----------------------------------------------------------------- /EXPRESSION_LOGS
 
@@ -651,7 +448,183 @@ def setup(bot):
         await interaction.response.send_message(
             embed=make_logs_embed(server_data),
             view=ExpressionLogsView(interaction, server_data),
-            ephemeral=True
+            ephemeral=False
         )
+    
+    class ExpressionRoleView(View):
+        def __init__(self, interaction: discord.Interaction, server_data):
+            super().__init__(timeout=60)
+            self.interaction = interaction
+            self.server_data = server_data
 
+        async def on_timeout(self):
+            pass
+
+        async def interaction_check(self, interaction: discord.Interaction) -> bool:
+            if interaction.user != self.interaction.user:
+                await interaction.response.send_message("You cannot interact with this menu.", ephemeral=True)
+                return False
+            return True
+
+        @discord.ui.button(label="Admins only", style=discord.ButtonStyle.primary)
+        async def admin_button(self, interaction: discord.Interaction, button: Button):
+            self.server_data["info"]["expression_perms"] = {"type": "admin", "role_id": None}
+            save_expressions(str(interaction.guild.id), self.server_data)
+            await self.update_embed(interaction, "Admins only")
+
+        @discord.ui.button(label="Everyone", style=discord.ButtonStyle.primary)
+        async def everyone_button(self, interaction: discord.Interaction, button: Button):
+            self.server_data["info"]["expression_perms"] = {"type": "everyone", "role_id": None}
+            save_expressions(str(interaction.guild.id), self.server_data)
+            await self.update_embed(interaction, "Everyone")
+
+        @discord.ui.button(label="Tag Role", style=discord.ButtonStyle.primary)
+        async def role_button(self, interaction: discord.Interaction, button: Button):
+            await interaction.response.send_message("Please tag a role to set permissions.", ephemeral=False)
+
+            def check(message):
+                return (
+                    message.author == interaction.user
+                    and message.channel == interaction.channel
+                    and len(message.role_mentions) > 0
+                )
+
+            try:
+                message = await interaction.client.wait_for("message", check=check, timeout=30)
+                role = message.role_mentions[0]
+                self.server_data["info"]["expression_perms"] = {"type": "role", "role_id": role.id}
+                save_expressions(str(interaction.guild.id), self.server_data)
+                await message.reply(f"Expression permissions set to @{role.name}.", ephemeral=False)
+            except asyncio.TimeoutError:
+                await interaction.followup.send("You took too long to respond. Please try again.", ephemeral=True)
+
+        async def update_embed(self, interaction: discord.Interaction, new_setting: str):
+            embed = discord.Embed(
+                title="Expression Role Settings",
+                description=f"Currently set to: **{new_setting}**\n\n"
+                            "1️⃣ **Admins only**\n"
+                            "2️⃣ **Everyone**\n"
+                            "3️⃣ **Tag Role**",
+                colour=embed_color,
+                timestamp=datetime.now()
+            )
+            embed.set_footer(text=footer_text, icon_url=icon)
+            await interaction.response.edit_message(embed=embed, view=self)
+
+
+    def make_logs_embed(server_data):
+        logs = server_data["info"].get("expression_logs", {})
+        current_channel = "None" if not logs.get("channel_id") else f"<#{logs['channel_id']}>"
+        lines = [
+            f"Set which channel and what to log regarding Expressions.",
+            f"**Current log channel:** {current_channel}",
+            "",
+            f"**➕ Created New Expression:** {'ON ✅' if logs['log_create'] else 'OFF ❌'}",
+            f"**📝 Edited Expression:** {'ON ✅' if logs['log_edit'] else 'OFF ❌'}",
+            f"**🚫 Deleted Expression:** {'ON ✅' if logs['log_delete'] else 'OFF ❌'}",
+            # f"**‼️ Expression Triggered:** {'ON ✅' if logs['log_trigger'] else 'OFF ❌'}",    # CURRENTLY DOESNT WORK!!!!
+            "",
+            "Use the buttons below to toggle each option or set a new channel."
+        ]
+
+        embed = discord.Embed(
+            title="Expression Logs Settings",
+            description="\n".join(lines),
+            colour=embed_color,
+            timestamp=datetime.now()
+        )
+        embed.set_footer(text=footer_text, icon_url=icon)
+        return embed
+
+
+    async def send_log(interaction: discord.Interaction, log_type: str, log_message: str):
+        guild_id = str(interaction.guild.id)
+        server_data = load_expressions(guild_id)
+        logs = server_data["info"].get("expression_logs", {})
+        channel_id = logs.get("channel_id")
+
+        if not logs.get(log_type, False):
+            return
+
+        if channel_id:
+            channel = interaction.guild.get_channel(channel_id)
+            if channel:
+                embed = discord.Embed(
+                    title="Expression Log",
+                    description=log_message,
+                    colour=embed_color,
+                    timestamp=datetime.now()
+                )
+                embed.set_footer(text=footer_text, icon_url=icon)
+                await channel.send(embed=embed)
+
+
+    class ExpressionLogsView(View):
+        def __init__(self, interaction: discord.Interaction, server_data):
+            super().__init__(timeout=60)
+            self.interaction = interaction
+            self.server_data = server_data
+
+        async def on_timeout(self):
+            pass
+
+        async def interaction_check(self, interaction: discord.Interaction) -> bool:
+            if interaction.user != self.interaction.user:
+                await interaction.response.send_message("You cannot use this.", ephemeral=True)
+                return False
+            return True
+        
+        async def update_message(self, interaction: discord.Interaction):
+            await interaction.response.edit_message(embed=make_logs_embed(self.server_data), view=self)
+
+        @discord.ui.button(label="➕", style=discord.ButtonStyle.primary)
+        async def toggle_create(self, interaction: discord.Interaction, button: Button):
+            logs = self.server_data["info"]["expression_logs"]
+            logs["log_create"] = not logs["log_create"]
+            save_expressions(str(interaction.guild.id), self.server_data)
+            await self.update_message(interaction)
+
+        @discord.ui.button(label="📝", style=discord.ButtonStyle.primary)
+        async def toggle_edit(self, interaction: discord.Interaction, button: Button):
+            logs = self.server_data["info"]["expression_logs"]
+            logs["log_edit"] = not logs["log_edit"]
+            save_expressions(str(interaction.guild.id), self.server_data)
+            await self.update_message(interaction)
+
+        @discord.ui.button(label="🚫", style=discord.ButtonStyle.primary)
+        async def toggle_delete(self, interaction: discord.Interaction, button: Button):
+            logs = self.server_data["info"]["expression_logs"]
+            logs["log_delete"] = not logs["log_delete"]
+            save_expressions(str(interaction.guild.id), self.server_data)
+            await self.update_message(interaction)
+
+        """@discord.ui.button(label="‼️", style=discord.ButtonStyle.primary)
+        async def toggle_trigger(self, interaction: discord.Interaction, button: Button):
+            logs = self.server_data["info"]["expression_logs"]
+            logs["log_trigger"] = not logs["log_trigger"]
+            save_expressions(str(interaction.guild.id), self.server_data)
+            await self.update_message(interaction)"""
+        ## CURRENTLY DOESNT WORK!!!!
+
+        @discord.ui.button(label="Change Channel", style=discord.ButtonStyle.secondary)
+        async def change_channel(self, interaction: discord.Interaction, button: Button):
+            await interaction.response.send_message("Tag the new logs channel:", ephemeral=False)
+
+            def check(msg):
+                return (
+                    msg.author == interaction.user
+                    and msg.channel == interaction.channel
+                    and len(msg.channel_mentions) > 0
+                )
+
+            try:
+                msg = await interaction.client.wait_for("message", check=check, timeout=30)
+                channel_id = msg.channel_mentions[0].id
+                self.server_data["info"]["expression_logs"]["channel_id"] = channel_id
+                save_expressions(str(interaction.guild.id), self.server_data)
+                await interaction.followup.send(f"Expression logs channel set to <#{channel_id}>.", ephemeral=False)
+            except asyncio.TimeoutError:
+                await interaction.followup.send("You took too long to respond. Please try again.", ephemeral=True)
+
+        
     

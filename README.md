@@ -10,15 +10,19 @@ Read the changelog for a deeper look into the development of Expressive!
 - **Custom reactions** - create Expressions which allow you to create custom reactions and interactions. Select if the Expression triggers on phrase or user message; if the bot sends a message, replies or reacts, and what the contents of this message will be!
 
 ## Work in progress 
-- **Welcome messages** - a feature which, while already in Discord by default, will bring a little spark. Create a custom message with embeds to welcome new users.
+- **Further updates to expressions** - more trigger types planned (url, file, img...), more actions planned (delete, sticker...), more customisation using names...
+- **Welcome messages** - a feature which, while already in Discord by default, will bring a little spark. Create a custom message with embeds to welcome new users
 - **Anti-harassment measures** - will allow users to opt out of these features, along with letting administrators set blacklists for people who can't create presets, banned words, minimum times...
-- **Bot updates** - will allow you to keep in touch with the development of Expressive and stay updated as soon as a new update rolls out.
-- **Community server**
+- **Bot updates** - keep in touch with the development of Expressive and stay updated as soon as a new update rolls out, or when a new beta feature drops
+- **Community server** - for bug reports, issues, requests
+
 
 ## Planned features
-- **Reaction roles**
-- **Moderation capabilities**
-- **Compound Expressions**
+- **Reaction roles** - customise your server by setting up reaction roles, letting users pick their own, or use it for verification
+- **Moderation capabilities** - tickets, warnings, automod with a blacklist (low priority, since moderation is already very well built into discord)
+- **Bot join message** - an introductory message Expressive sends, introducing itself and features
+- **Compound expressions** - probably our biggest planned feature to date, compound expressions would allow you to program a set of steps which will be taken upon trigger
+
 
 
 ## Command list
@@ -42,6 +46,6 @@ Read the changelog for a deeper look into the development of Expressive!
 ### Installation steps:
 1. Clone / download the contents of the repository.
 2. Create a virtual environment.
-3. Navigate to the installation folder and run `pip install -r requirements.txt` - This will install all libraries used.
-4. Create the **config.py** and add the following: `TOKEN = 'YOUR TOKEN HERE' ` (including the apostrophe).
-5. Run the bot by navigating into your installation folder and running:  Linux / MacOS :  `python3 bot.py`  Windows : `python bot.py` 
+3. Navigate to the installation folder and run `pip install -r requirements.txt` - This will install all libraries used
+4. Create the **config.py** and add `TOKEN = 'YOUR TOKEN HERE'` and `ICON_URL = 'YOUR URL'`
+5. Run the bot by navigating into your installation folder and running:  Linux / MacOS :  `python3 bot.py`  Windows : `python bot.py`

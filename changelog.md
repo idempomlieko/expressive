@@ -1,5 +1,5 @@
-## v0.3.0 - Thursday, March 20
-- Following a lot of small bug fixes and beta testing on the local branch, we are proud to announce version v0.3.0. This version brings every basic feature we wanted out of Expressive at the start. There are still quite a lot of things to flesh out and fix, and a lot more features we plan on adding.
+## v0.3.0 - Monday, March 24
+- Following a lot of small bug fixes and beta testing on the local branch, we are proud to announce version v0.3.0. This version brings every basic feature we wanted out of Expressive at the start. There are still quite a lot of things to flesh out and fix, and a lot more features we plan on adding. This update was supposed to come out on the 20th, however before pushing I've ran into an error (400) and I was unable to fix it, and had to rewrite the code for new features.
 - **Added** /expression_list, a dynamic list which allows you to look through all the expressions in your server, 10 at a time, and open each one up for more details
 - **Added** /expression_info, which shows more information on a given expression.
 - **Added** /expression_role to allow admins to set who can manage expressions
