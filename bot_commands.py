@@ -359,9 +359,9 @@ def setup(bot):
                 embed.add_field(name="Created By", value=expression["created_by"], inline=True)
                 embed.set_footer(text=footer_text, icon_url=icon)
 
-                await interaction.response.send_message(embed=embed, ephemeral=False)
+                await interaction.response.send_message(embed=embed, ephemeral=True)
             else:
-                await interaction.response.send_message("Expression not found.", ephemeral=False)
+                await interaction.response.send_message("Expression not found.", ephemeral=True)
 
         async def left_callback(self, interaction: discord.Interaction):
             self.page -= 1

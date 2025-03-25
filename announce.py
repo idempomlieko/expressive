@@ -3,7 +3,6 @@ import logging
 import config
 from discord.utils import get
 
-
 icon = config.ICON_URL
 logger = logging.getLogger(__name__)
 
